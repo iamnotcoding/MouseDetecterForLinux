@@ -6,6 +6,7 @@ struct arg_struct1
 {
 	char devpath[MAX_ARR_SIZE];
 	size_t mouseNum;
+	size_t mouseID;
 };
 
 struct mouse_data
@@ -17,12 +18,14 @@ struct mouse_data
 	uint8_t y;
 };
 
-char g_devicesInfo[MAX_ARR_SIZE][MAX_ARR_SIZE][MAX_ARR_SIZE] = {0};
-int g_mousnumList[MAX_ARR_SIZE] = {0};
+pthread_t g_threads[MAX_ARR_SIZE];
+
 size_t g_devicesNum;
 size_t g_dectectedmouseNum = -1;
+
+char g_devicesInfo[MAX_ARR_SIZE][MAX_ARR_SIZE][MAX_ARR_SIZE] = {0};
 char g_dectectedmousePath[MAX_ARR_SIZE];
-pthread_t g_threads[MAX_ARR_SIZE];
+int g_mousnumList[MAX_ARR_SIZE] = {0};
 
 struct mouse_data BinaryDataToMouseData(uint8_t mouse_binary_data[3])
 {
@@ -38,12 +41,12 @@ struct mouse_data BinaryDataToMouseData(uint8_t mouse_binary_data[3])
 	return mouse_data;
 }
 
-void PrintMouseState(void)
+void PrintMouseStat(void)
 {
 	struct mouse_data mouse_data;
 	uint8_t mouse_binary_data[3];
 
-	printf("reading data form %s... please move the mouse\n\n", g_dectectedmousePath);
+	printf("reading data form %s... please move the mouse(touch pad may not work properly)\n\n", g_dectectedmousePath);
 
 	FILE *mouse = fopen(g_dectectedmousePath, "rb");
 
@@ -67,16 +70,17 @@ void PrintMouseState(void)
 	}
 }
 
-void *CleanThread(pthread_t thread[], size_t mouseNum)
+void *CleanThread(pthread_t thread[], size_t mouseNum, size_t excluededmouseID)
 {
-	while (true)
-	{
-		sleep(1);
+	sleep(1);
 
-		if (g_dectectedmouseNum != -1)
+	if (g_dectectedmouseNum != -1)
+	{
+		for (size_t i = 0; i < mouseNum; ++i)
 		{
-			for (size_t i = 0; i < mouseNum; ++i)
+			if (i != excluededmouseID)
 			{
+				printf("killing thread %zu...\n", i);
 				pthread_cancel(thread[i]);
 			}
 		}
@@ -87,6 +91,7 @@ void *IsInputChanges(void *args)
 {
 	const char *devpath = (*(struct arg_struct1 *)args).devpath;
 	size_t mouseNum = (*(struct arg_struct1 *)args).mouseNum;
+	size_t mouseID = (*(struct arg_struct1 *)args).mouseID;
 	uint8_t temp;
 	FILE *dev = fopen(devpath, "rb");
 
@@ -101,11 +106,11 @@ void *IsInputChanges(void *args)
 
 	if (temp != 0)
 	{
-		printf("mouse : %s detected!\n", devpath);
+		printf("mouse %zu : %s detected!\n", mouseID, devpath);
 
 		g_dectectedmouseNum = mouseNum;
 		strcpy(g_dectectedmousePath, devpath);
-		CleanThread(g_threads, mouseNum);
+		CleanThread(g_threads, mouseNum, mouseID);
 	}
 
 	pthread_exit(NULL);
@@ -136,7 +141,7 @@ size_t DetectMouse(size_t mouseNum)
 					pstatus = &status;
 					temp_arg1_structs[i] = malloc(sizeof(struct arg_struct1));
 					temp_arg1_structs[i]->mouseNum = mouseNum;
-
+					temp_arg1_structs[i]->mouseID = i;
 					token = strtok(token, " ");
 					sprintf(devpath, "/dev/input/%s", token);
 					strcpy(temp_arg1_structs[i]->devpath, devpath);
@@ -152,8 +157,8 @@ size_t DetectMouse(size_t mouseNum)
 		pthread_join(g_threads[i], (void **)&pstatus);
 	}
 
-	for(size_t i = 0; i < mouseNum; ++i)
-			free(temp_arg1_structs[i]);
+	for (size_t i = 0; i < mouseNum; ++i)
+		free(temp_arg1_structs[i]);
 }
 
 size_t PrintMouseInfo(size_t mouseNum)
@@ -218,7 +223,8 @@ int main(void)
 	mouseNum = SeekMouse(inputdevicelistFile);
 	PrintMouseInfo(mouseNum);
 	DetectMouse(mouseNum);
-	PrintMouseState();
-	
+	PrintMouseStat();
+
 	fclose(inputdevicelistFile);
 }
+
