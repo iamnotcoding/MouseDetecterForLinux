@@ -1,4 +1,4 @@
-CFLAGS=-g -std=c11 -pthread
+CFLAGS=-g -std=c11 -Wall -Wextra -Wpedantic -O0 -pthread
 CC=gcc
 
 all:	main.o
