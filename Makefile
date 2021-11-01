@@ -1,13 +1,13 @@
 CFLAGS=-g -std=c11 -Wall -Wextra -Wpedantic -O0 -pthread
 CC=gcc
 
-all:	main.o
-	${CC} main.o -o main ${CFLAGS}
+all:	MouseDetecter.o
+	${CC} main.o -o MouseDetecter ${CFLAGS}
 main.o:	main.c
 	${CC} -c main.c -o main.o ${CFLAGS}
 clean:
-	rm main main.o
+	rm  MouseDetecter main.o
 install :
-	cp main /usr/bin/main
+	cp MouseDetecter /usr/bin/
 uninstall	:
-	rm /usr/bin/main
+	rm /usr/bin/MouseDetecter
