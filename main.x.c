@@ -1,4 +1,4 @@
-#define _GNU_SOURCE`:
+#define _GNU_SOURCE
 
 #include <errno.h>
 #include <inttypes.h>
@@ -58,7 +58,7 @@ void PrintMouseState(void)
 	uint8_t mouse_binary_data[3];
 	char errorStr[200];
 
-	printf("reading data form %s... please move the mouse(touchpads may not "
+	printf("reading data form %s... please move the mouse(touch pad may not "
 		   "work properly)\n\n",
 		   g_dectectedmousePath);
 
@@ -145,7 +145,7 @@ void DetectMouse(size_t mouseNum)
 	char *token;
 	char devpath[MAX_ARR_SIZE];
 
-	struct arg_struct1 *temp_arg1_structs[MAX_ARR_SIZE];
+	struct arg_struct1 temp_arg1_struct;
 
 	puts("-------------------------");
 	puts("Please move a mouse");
@@ -166,14 +166,13 @@ void DetectMouse(size_t mouseNum)
 				if (strstr(token, "mouse") || strstr(token, "mice"))
 				{
 					// make structure
-					temp_arg1_structs[i] = malloc(sizeof(struct arg_struct1));
-					temp_arg1_structs[i]->mouseNum = mouseNum;
-					temp_arg1_structs[i]->mouseID = i;
+					temp_arg1_struct.mouseNum = mouseNum;
+					temp_arg1_struct.mouseID = i;
 
 					// make abosolute path
 					token = strtok(token, " ");
 					sprintf(devpath, "/dev/input/%s", token);
-					strcpy(temp_arg1_structs[i]->devpath, devpath);
+					strcpy(temp_arg1_struct.devpath, devpath);
 
 					/* creates multiple thread for each input streams.
 					if you don't use multithread, you cannot detect input
@@ -182,7 +181,7 @@ void DetectMouse(size_t mouseNum)
 					properly.*/
 
 					pthread_create(&g_threads[i], NULL, IsInputChanges,
-								   temp_arg1_structs[i]);
+								   &temp_arg1_struct);
 				}
 			}
 		}
@@ -191,11 +190,6 @@ void DetectMouse(size_t mouseNum)
 	for (size_t i = 0; i < mouseNum; i++)
 	{
 		pthread_join(g_threads[i], NULL);
-	}
-
-	for (size_t i = 0; i < mouseNum; i++)
-	{
-		free(temp_arg1_structs[i]);
 	}
 }
 
@@ -290,8 +284,8 @@ int main(void)
 
 	DetectMouse(mouseNum);
 
-	puts("Do you want to see current mouse state?(y/n)(touchpads may not work "
-		 "properly)"
+	puts("Do you want to see current mouse state?(touchpad may not work "
+		 "porperly)(y/n)"
 		 "(mouse coordinate and button state)");
 
 	scanf(" %c", &yesOrNo);
