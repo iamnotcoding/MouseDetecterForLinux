@@ -1,15 +1,14 @@
-#define _GNU_SOURCE
+#define _GNU_SOURCE`:
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
-#include <pthread.h>
 #include <unistd.h>
 
 #define MAX_ARR_SIZE 100
@@ -59,7 +58,7 @@ void PrintMouseState(void)
 	uint8_t mouse_binary_data[3];
 	char errorStr[200];
 
-	printf("reading data form %s... please move the mouse(touch pad may not "
+	printf("reading data form %s... please move the mouse(touchpads may not "
 		   "work properly)\n\n",
 		   g_dectectedmousePath);
 
@@ -118,7 +117,7 @@ void *IsInputChanges(void *args)
 	FILE *dev = fopen(devpath, "rb");
 
 	if (dev == NULL)
-	{ 
+	{
 		sprintf(errorStr, "opening %s failed maybe you are not root?", devpath);
 		perror(errorStr);
 		putchar('\n');
@@ -146,7 +145,7 @@ void DetectMouse(size_t mouseNum)
 	char *token;
 	char devpath[MAX_ARR_SIZE];
 
-	struct arg_struct1 temp_arg1_struct;
+	struct arg_struct1 *temp_arg1_structs[MAX_ARR_SIZE];
 
 	puts("-------------------------");
 	puts("Please move a mouse");
@@ -167,13 +166,14 @@ void DetectMouse(size_t mouseNum)
 				if (strstr(token, "mouse") || strstr(token, "mice"))
 				{
 					// make structure
-					temp_arg1_struct.mouseNum = mouseNum;
-					temp_arg1_struct.mouseID = i;
+					temp_arg1_structs[i] = malloc(sizeof(struct arg_struct1));
+					temp_arg1_structs[i]->mouseNum = mouseNum;
+					temp_arg1_structs[i]->mouseID = i;
 
 					// make abosolute path
 					token = strtok(token, " ");
 					sprintf(devpath, "/dev/input/%s", token);
-					strcpy(temp_arg1_struct.devpath, devpath);
+					strcpy(temp_arg1_structs[i]->devpath, devpath);
 
 					/* creates multiple thread for each input streams.
 					if you don't use multithread, you cannot detect input
@@ -181,7 +181,8 @@ void DetectMouse(size_t mouseNum)
 					multithread, it probably not be able to detect mice
 					properly.*/
 
-					pthread_create(&g_threads[i], NULL, IsInputChanges,  &temp_arg1_struct);
+					pthread_create(&g_threads[i], NULL, IsInputChanges,
+								   temp_arg1_structs[i]);
 				}
 			}
 		}
@@ -190,6 +191,11 @@ void DetectMouse(size_t mouseNum)
 	for (size_t i = 0; i < mouseNum; i++)
 	{
 		pthread_join(g_threads[i], NULL);
+	}
+
+	for (size_t i = 0; i < mouseNum; i++)
+	{
+		free(temp_arg1_structs[i]);
 	}
 }
 
@@ -269,9 +275,10 @@ int main(void)
 
 	if (inputdevicelistFile == NULL)
 	{
-		perror("opening /proc/bus/input/devices failed! maybe you are not root?");
+		perror(
+			"opening /proc/bus/input/devices failed! maybe you are not root?");
 		putchar('\n');
-		
+
 		exit(EXIT_FAILURE);
 	}
 
@@ -283,7 +290,8 @@ int main(void)
 
 	DetectMouse(mouseNum);
 
-	puts("Do you want to see current mouse state?(y/n)"
+	puts("Do you want to see current mouse state?(y/n)(touchpads may not work "
+		 "properly)"
 		 "(mouse coordinate and button state)");
 
 	scanf(" %c", &yesOrNo);
