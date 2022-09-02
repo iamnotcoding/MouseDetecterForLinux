@@ -15,7 +15,7 @@
 
 typedef struct IsInputChangesArg_t
 {
-	char devpath[MAX_ARR_SIZE];
+	char devPath[MAX_ARR_SIZE];
 	int mouseIndex;
 	int mouseCount;
 } IsInputChangesArg;
@@ -38,18 +38,18 @@ char g_deviceInfo[MAX_ARR_SIZE][MAX_ARR_SIZE][MAX_ARR_SIZE];
 char g_dectectedMousePath[MAX_ARR_SIZE];
 int g_mouseIndexesList[MAX_ARR_SIZE];
 
-struct mouse_data BinaryDataToMouseData(uint8_t mouse_binary_data[3])
+MouseData BinaryDataToMouseData(uint8_t mouseBinaryData[3])
 {
-	struct mouse_data mouse_data;
+	MouseData mouseData;
 
-	mouse_data.left = mouse_binary_data[0] & 0x1;
-	mouse_data.right = mouse_binary_data[0] & 0x2;
-	mouse_data.middle = mouse_binary_data[0] & 0x4;
+	mouseData.left = mouseBinaryData[0] & 0x1;
+	mouseData.right = mouseBinaryData[0] & 0x2;
+	mouseData.middle = mouseBinaryData[0] & 0x4;
 
-	mouse_data.x = mouse_binary_data[1];
-	mouse_data.y = mouse_binary_data[2];
+	mouseData.x = mouseBinaryData[1];
+	mouseData.y = mouseBinaryData[2];
 
-	return mouse_data;
+	return mouseData;
 }
 
 void PrintMouseState(void)
@@ -112,12 +112,12 @@ void *IsInputChanges(void *arg)
 	IsInputChangesArg *args = arg;
 	uint8_t temp;
 	char errorStr[200];
-	FILE *dev = fopen(args->devpath, "rb");
+	FILE *dev = fopen(args->devPath, "rb");
 
 	if (dev == NULL)
 	{
 		sprintf(errorStr, "opening %s failed maybe you are not root?",
-				args->devpath);
+				args->devPath);
 		perror(errorStr);
 		putchar('\n');
 
@@ -129,11 +129,11 @@ void *IsInputChanges(void *arg)
 	fclose(dev);
 
 	printf("\nmouse number %d : %s detected!\n\n", args->mouseIndex + 1,
-		   args->devpath);
+		   args->devPath);
 
 	g_dectectedMouseIndex = args->mouseIndex;
 
-	strcpy(g_dectectedMousePath, args->devpath);
+	strcpy(g_dectectedMousePath, args->devPath);
 
 	CleanThread(g_threads, args->mouseCount, args->mouseIndex);
 
@@ -143,7 +143,7 @@ void *IsInputChanges(void *arg)
 void DetectMouse(int mouseCount)
 {
 	char *token;
-	char devpath[MAX_ARR_SIZE];
+	char devPath[MAX_ARR_SIZE];
 
 	IsInputChangesArg *tempArg[MAX_ARR_SIZE];
 
@@ -172,8 +172,8 @@ void DetectMouse(int mouseCount)
 
 					// make abosolute path
 					token = strtok(token, " ");
-					sprintf(devpath, "/dev/input/%s", token);
-					strcpy(tempArg[i]->devpath, devpath);
+					sprintf(devPath, "/dev/input/%s", token);
+					strcpy(tempArg[i]->devPath, devPath);
 
 					/* creates multiple thread for each input streams.
 					if you don't use multithread, you cannot detect input
