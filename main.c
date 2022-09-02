@@ -1,4 +1,4 @@
-#define _GNU_SOURCE`:
+#define _GNU_SOURCE
 
 #include <errno.h>
 #include <inttypes.h>
@@ -13,30 +13,30 @@
 
 #define MAX_ARR_SIZE 100
 
-struct arg_struct1
+typedef struct IsInputChangesArg_t
 {
 	char devpath[MAX_ARR_SIZE];
-	size_t mouseNum;
-	size_t mouseID;
-};
+	int mouseIndex;
+	int mouseCount;
+} IsInputChangesArg;
 
-struct mouse_data
+typedef struct mouse_data
 {
 	uint8_t right;
 	uint8_t left;
 	uint8_t middle;
 	uint8_t x;
 	uint8_t y;
-};
+} MouseData;
 
 pthread_t g_threads[MAX_ARR_SIZE];
 
-size_t g_devicesNum;
-size_t g_dectectedmouseNum;
+int g_deviceCount;
+int g_dectectedMouseIndex = -1;
 
-char g_devicesInfo[MAX_ARR_SIZE][MAX_ARR_SIZE][MAX_ARR_SIZE];
-char g_dectectedmousePath[MAX_ARR_SIZE];
-int g_mousnumList[MAX_ARR_SIZE];
+char g_deviceInfo[MAX_ARR_SIZE][MAX_ARR_SIZE][MAX_ARR_SIZE];
+char g_dectectedMousePath[MAX_ARR_SIZE];
+int g_mouseIndexesList[MAX_ARR_SIZE];
 
 struct mouse_data BinaryDataToMouseData(uint8_t mouse_binary_data[3])
 {
@@ -54,19 +54,19 @@ struct mouse_data BinaryDataToMouseData(uint8_t mouse_binary_data[3])
 
 void PrintMouseState(void)
 {
-	struct mouse_data mouse_data;
-	uint8_t mouse_binary_data[3];
+	MouseData mouseData;
+	uint8_t mouseBinaryData[3];
 	char errorStr[200];
 
 	printf("reading data form %s... please move the mouse(touchpads may not "
 		   "work properly)\n\n",
-		   g_dectectedmousePath);
+		   g_dectectedMousePath);
 
-	FILE *mouse = fopen(g_dectectedmousePath, "rb");
+	FILE *mouse = fopen(g_dectectedMousePath, "rb");
 
 	if (mouse == NULL)
 	{
-		sprintf(errorStr, "reading %s failed", g_dectectedmousePath);
+		sprintf(errorStr, "reading %s failed", g_dectectedMousePath);
 		perror(errorStr);
 		putchar('\n');
 
@@ -75,29 +75,29 @@ void PrintMouseState(void)
 
 	while (!feof(mouse))
 	{
-		fread(mouse_binary_data, sizeof(uint8_t) * 3, 1, mouse);
-		mouse_data = BinaryDataToMouseData(mouse_binary_data);
+		fread(mouseBinaryData, sizeof(uint8_t) * 3, 1, mouse);
+		mouseData = BinaryDataToMouseData(mouseBinaryData);
 
 		// prints current mouse coordinate and mouse button state
 		fprintf(stderr,
 				"x : "
 				"%" PRIu8 " y : "
 				"%" PRIu8 " left = %s right = %s middle = %s\n",
-				mouse_data.x, mouse_data.x, mouse_data.left ? "true" : "false",
-				mouse_data.right ? "true" : "false",
-				mouse_data.middle ? "true" : "false");
+				mouseData.x, mouseData.x, mouseData.left ? "true" : "false",
+				mouseData.right ? "true" : "false",
+				mouseData.middle ? "true" : "false");
 	}
 }
 
-void *CleanThread(pthread_t thread[], size_t mouseNum, size_t excluededThread)
+void *CleanThread(pthread_t thread[], int mouseCount, int excluededThread)
 {
-	if (g_dectectedmouseNum != SIZE_MAX)
+	if (g_dectectedMouseIndex != -1)
 	{
-		for (size_t i = 0; i < mouseNum; i++)
+		for (int i = 0; i < mouseCount; i++)
 		{
 			if (i != excluededThread)
 			{
-				printf("killing thread %zu...\n", i);
+				printf("killing thread %d...\n", i + 1);
 
 				pthread_cancel(thread[i]);
 			}
@@ -107,58 +107,58 @@ void *CleanThread(pthread_t thread[], size_t mouseNum, size_t excluededThread)
 	return NULL;
 }
 
-void *IsInputChanges(void *args)
+void *IsInputChanges(void *arg)
 {
-	const char *devpath = (*(struct arg_struct1 *)args).devpath;
-	size_t mouseNum = (*(struct arg_struct1 *)args).mouseNum;
-	size_t mouseID = (*(struct arg_struct1 *)args).mouseID;
+	IsInputChangesArg *args = arg;
 	uint8_t temp;
 	char errorStr[200];
-	FILE *dev = fopen(devpath, "rb");
+	FILE *dev = fopen(args->devpath, "rb");
 
 	if (dev == NULL)
 	{
-		sprintf(errorStr, "opening %s failed maybe you are not root?", devpath);
+		sprintf(errorStr, "opening %s failed maybe you are not root?",
+				args->devpath);
 		perror(errorStr);
 		putchar('\n');
 
-		pthread_exit(NULL);
+		return NULL;
 	}
 
 	fread(&temp, sizeof temp, 1, dev);
 
 	fclose(dev);
 
-	printf("\nmouse %zu : %s detected!\n\n", mouseID, devpath);
+	printf("\nmouse number %d : %s detected!\n\n", args->mouseIndex + 1,
+		   args->devpath);
 
-	g_dectectedmouseNum = mouseNum;
+	g_dectectedMouseIndex = args->mouseIndex;
 
-	strcpy(g_dectectedmousePath, devpath);
+	strcpy(g_dectectedMousePath, args->devpath);
 
-	CleanThread(g_threads, mouseNum, mouseID);
+	CleanThread(g_threads, args->mouseCount, args->mouseIndex);
 
-	pthread_exit(NULL);
+	return NULL;
 }
 
-void DetectMouse(size_t mouseNum)
+void DetectMouse(int mouseCount)
 {
 	char *token;
 	char devpath[MAX_ARR_SIZE];
 
-	struct arg_struct1 *temp_arg1_structs[MAX_ARR_SIZE];
+	IsInputChangesArg *tempArg[MAX_ARR_SIZE];
 
 	puts("-------------------------");
 	puts("Please move a mouse");
 
 	sleep(1);
 
-	for (size_t i = 0; i < mouseNum; i++)
+	for (int i = 0; i < mouseCount; i++)
 	{
-		for (size_t j = 0;
-			 g_devicesInfo[g_mousnumList[i]][j][0] != '\n' && j < MAX_ARR_SIZE;
+		for (int j = 0; g_deviceInfo[g_mouseIndexesList[i]][j][0] != '\n' &&
+						j < MAX_ARR_SIZE;
 			 j++)
 		{
-			token = strtok(g_devicesInfo[g_mousnumList[i]][j], "=");
+			token = strtok(g_deviceInfo[g_mouseIndexesList[i]][j], "=");
 			token = strtok(NULL, "=");
 
 			if (token != NULL)
@@ -166,14 +166,14 @@ void DetectMouse(size_t mouseNum)
 				if (strstr(token, "mouse") || strstr(token, "mice"))
 				{
 					// make structure
-					temp_arg1_structs[i] = malloc(sizeof(struct arg_struct1));
-					temp_arg1_structs[i]->mouseNum = mouseNum;
-					temp_arg1_structs[i]->mouseID = i;
+					tempArg[i] = malloc(sizeof(IsInputChangesArg));
+					tempArg[i]->mouseIndex = i;
+					tempArg[i]->mouseCount = mouseCount;
 
 					// make abosolute path
 					token = strtok(token, " ");
 					sprintf(devpath, "/dev/input/%s", token);
-					strcpy(temp_arg1_structs[i]->devpath, devpath);
+					strcpy(tempArg[i]->devpath, devpath);
 
 					/* creates multiple thread for each input streams.
 					if you don't use multithread, you cannot detect input
@@ -182,76 +182,76 @@ void DetectMouse(size_t mouseNum)
 					properly.*/
 
 					pthread_create(&g_threads[i], NULL, IsInputChanges,
-								   temp_arg1_structs[i]);
+								   tempArg[i]);
 				}
 			}
 		}
 	}
 
-	for (size_t i = 0; i < mouseNum; i++)
+	for (int i = 0; i < mouseCount; i++)
 	{
 		pthread_join(g_threads[i], NULL);
 	}
 
-	for (size_t i = 0; i < mouseNum; i++)
+	for (int i = 0; i < mouseCount; i++)
 	{
-		free(temp_arg1_structs[i]);
+		free(tempArg[i]);
 	}
 }
 
-void PrintMouseInfo(size_t mouseNum)
+void PrintMouseInfo(int mouseCount)
 {
-	printf("%zu mice(mouse) found!\n\n", mouseNum);
+	printf("%d mice(mouse) found!\n\n", mouseCount);
 
-	for (size_t i = 0; i < mouseNum; i++)
+	for (int i = 0; i < mouseCount; i++)
 	{
-		printf("number %zu :\n", i + 1);
+		printf("number %d :\n", i + 1);
 
-		for (size_t j = 0; g_devicesInfo[i][j][0] != '\n'; j++)
+		for (int j = 0; g_deviceInfo[i][j][0] != '\n'; j++)
 		{
 			usleep(10000);
 
-			printf("%s", g_devicesInfo[g_mousnumList[i]][j]);
+			printf("%s", g_deviceInfo[g_mouseIndexesList[i]][j]);
 		}
 
 		putchar('\n');
 	}
 }
 
-size_t SeekMouse(void)
+int SeekMice(void)
 {
-	size_t k = 0;
+	int mouseCount = 0;
 
-	for (size_t i = 0; i < g_devicesNum; i++)
+	for (int i = 0; i < g_deviceCount; i++)
 	{
-		for (size_t j = 0; j < g_devicesNum; j++)
+		for (int j = 0; j < g_deviceCount; j++)
 		{
-			if (strstr(g_devicesInfo[i][j], "mouse") ||
-				strstr(g_devicesInfo[i][j], "mice"))
+			if (strstr(g_deviceInfo[i][j], "mouse") ||
+				strstr(g_deviceInfo[i][j], "mice"))
 			{
-				g_mousnumList[k++] = i;
+				g_mouseIndexesList[mouseCount++] = i;
 			}
 		}
 	}
 
-	return k;
+	return mouseCount;
 }
 
-void ParseDevicesList(FILE *inputdevicelistFile)
+void ParseDevicesList(FILE *inputDevicesListFile)
 {
-	for (size_t i = 0; i < MAX_ARR_SIZE && !feof(inputdevicelistFile); i++)
+	for (int i = 0; i < MAX_ARR_SIZE && !feof(inputDevicesListFile); i++)
 	{
-		for (size_t j = 0; j < MAX_ARR_SIZE && !feof(inputdevicelistFile); j++)
+		for (int j = 0; j < MAX_ARR_SIZE && !feof(inputDevicesListFile); j++)
 		{
-			fgets(g_devicesInfo[i][j], MAX_ARR_SIZE, inputdevicelistFile);
+			fgets(g_deviceInfo[i][j], MAX_ARR_SIZE, inputDevicesListFile);
 
-			if (g_devicesInfo[i][j][0] == '\n')
+			if (g_deviceInfo[i][j][0] == '\n')
 			{
 				break;
 			}
 		}
 
-		g_devicesNum = i;
+		g_deviceCount = i;
 	}
 }
 
@@ -265,15 +265,15 @@ void PrintStartScreen(void)
 
 int main(void)
 {
-	size_t mouseNum;
-	FILE *inputdevicelistFile = fopen("/proc/bus/input/devices", "rb");
+	int mouseCount;
+	FILE *inputDevicesListFile = fopen("/proc/bus/input/devices", "rb");
 	char yesOrNo;
 
 	PrintStartScreen();
 
 	sleep(1);
 
-	if (inputdevicelistFile == NULL)
+	if (inputDevicesListFile == NULL)
 	{
 		perror(
 			"opening /proc/bus/input/devices failed! maybe you are not root?");
@@ -282,13 +282,13 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
-	ParseDevicesList(inputdevicelistFile);
+	ParseDevicesList(inputDevicesListFile);
 
-	mouseNum = SeekMouse();
+	mouseCount = SeekMice();
 
-	PrintMouseInfo(mouseNum);
+	PrintMouseInfo(mouseCount);
 
-	DetectMouse(mouseNum);
+	DetectMouse(mouseCount);
 
 	puts("Do you want to see current mouse state?(y/n)(touchpads may not work "
 		 "properly)"
@@ -301,5 +301,5 @@ int main(void)
 		PrintMouseState();
 	}
 
-	fclose(inputdevicelistFile);
+	fclose(inputDevicesListFile);
 }
