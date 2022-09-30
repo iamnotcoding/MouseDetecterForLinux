@@ -1,7 +1,7 @@
 # MouseDetect
-a program that detects mouse and prints mouse state
+a program that detects a mouse and prints the mouse state
 
-#only tested on ubuntu 20.04
+# tested on ubuntu 24.04.01
 
 requirments : c version >= c11
 
