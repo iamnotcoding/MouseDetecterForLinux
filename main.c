@@ -22,11 +22,11 @@ typedef struct IsInputChangesArg_t
 
 typedef struct mouse_data
 {
-	uint8_t right;
+	int8_t right;
 	uint8_t left;
 	uint8_t middle;
-	uint8_t x;
-	uint8_t y;
+	int8_t x;
+	int8_t y;
 } MouseData;
 
 pthread_t g_threads[MAX_ARR_SIZE];
@@ -46,8 +46,8 @@ MouseData BinaryDataToMouseData(uint8_t mouseBinaryData[3])
 	mouseData.right = mouseBinaryData[0] & 0x2;
 	mouseData.middle = mouseBinaryData[0] & 0x4;
 
-	mouseData.x = mouseBinaryData[1];
-	mouseData.y = mouseBinaryData[2];
+	mouseData.x = (mouseBinaryData[0] & 0x10) ? mouseBinaryData[1] - 256 : mouseBinaryData[1];
+	mouseData.y = (mouseBinaryData[0] & 0x20) ? -(mouseBinaryData[2] - 256) : -mouseBinaryData[2];
 
 	return mouseData;
 }
@@ -80,9 +80,9 @@ void PrintMouseState(void)
 		// prints current relative mouse coordinate and mouse button state
 		fprintf(stderr,
 				"x : "
-				"%" PRIu8 " y : "
-				"%" PRIu8 " left = %s right = %s middle = %s\n",
-				mouseData.x, mouseData.x, mouseData.left ? "true" : "false",
+				"%" PRId8 " y : "
+				"%" PRId8 " left = %s right = %s middle = %s\n",
+				mouseData.x, mouseData.y, mouseData.left ? "true" : "false",
 				mouseData.right ? "true" : "false",
 				mouseData.middle ? "true" : "false");
 	}
