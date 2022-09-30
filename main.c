@@ -58,8 +58,7 @@ void PrintMouseState(void)
 	uint8_t mouseBinaryData[3];
 	char errorStr[200];
 
-	printf("reading data form %s... please move the mouse(touchpads may not "
-		   "work properly)\n\n",
+	printf("reading data form %s... please move the mouse\n\n",
 		   g_dectectedMousePath);
 
 	FILE *mouse = fopen(g_dectectedMousePath, "rb");
@@ -78,7 +77,7 @@ void PrintMouseState(void)
 		fread(mouseBinaryData, sizeof(uint8_t) * 3, 1, mouse);
 		mouseData = BinaryDataToMouseData(mouseBinaryData);
 
-		// prints current mouse coordinate and mouse button state
+		// prints current relative mouse coordinate and mouse button state
 		fprintf(stderr,
 				"x : "
 				"%" PRIu8 " y : "
@@ -174,12 +173,6 @@ void DetectMouse(int mouseCount)
 					token = strtok(token, " ");
 					sprintf(devPath, "/dev/input/%s", token);
 					strcpy(tempArg[i]->devPath, devPath);
-
-					/* creates multiple thread for each input streams.
-					if you don't use multithread, you cannot detect input
-					streams changes simultaneously. So if you don't use
-					multithread, it probably not be able to detect mice
-					properly.*/
 
 					pthread_create(&g_threads[i], NULL, IsInputChanges,
 								   tempArg[i]);
@@ -290,9 +283,8 @@ int main(void)
 
 	DetectMouse(mouseCount);
 
-	puts("Do you want to see current mouse state?(y/n)(touchpads may not work "
-		 "properly)"
-		 "(mouse coordinate and button state)");
+	puts("Do you want to see current mouse state?(y/n)"
+		 "(mouse relative positions and button states)");
 
 	scanf(" %c", &yesOrNo);
 
