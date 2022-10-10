@@ -1,18 +1,12 @@
 # MouseDetect
-a program that detects a mouse and prints the mouse state
+a library that detects mice(a mouse) and gets a mouse state
 
-# tested on ubuntu 24.04.01
+### tested on ubuntu 24.04.01
 
-requirments : c version >= c11
+**requirments** : c version >= c11
 
-how to build:
-make
-
-how to clean files:
-make clean
-
-how to install:
-make install
-
-how to uninstall
-make uninstall
+### how to build sample:
+    mkdir build
+    cd build
+    cmake ..
+    make
