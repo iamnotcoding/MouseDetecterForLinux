@@ -52,11 +52,14 @@ static MouseData BinaryDataToMouseData(uint8_t mouseBinaryData[3])
 	return mouseData;
 }
 
-MouseData GetAMouseData(FILE *mouse)
+MouseData GetAMouseData(void)
 {
 	uint8_t mouseBinaryData[3];
+	FILE *mouse = fopen(g_dectectedMousePath, "rb");
 
 	fread(mouseBinaryData, sizeof(uint8_t) * 3, 1, mouse);
+	fclose(mouse);
+	
 	return BinaryDataToMouseData(mouseBinaryData);
 }
 
@@ -77,7 +80,7 @@ void PrintMouseState(void)
 	// you'll have to press ^C to exit
 	while (true)
 	{
-		MouseData mouseData = GetAMouseData(mouse);
+		MouseData mouseData = GetAMouseData();
 
 		// prints current relative mouse coordinate and mouse button state
 		fprintf(stderr,

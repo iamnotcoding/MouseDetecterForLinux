@@ -14,12 +14,13 @@ typedef struct mouse_data
 } MouseData;
 
 MouseData BinaryDataToMouseData(uint8_t mouseBinaryData[3]);
-MouseData GetAMouseData(FILE *mouse);
+MouseData GetAMouseData(void);
 void PrintMouseState(void);
 void DetectMouse(int mouseCount);
 void ParseDevicesList(FILE *inputDevicesListFile);
 void PrintMouseInfo(int mouseCount);
 void PrintStartScreen(void);
+// returns the number of mice
 int SeekMice(void);
 
 #endif
